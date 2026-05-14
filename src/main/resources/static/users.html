@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+<div class="card">
+    <h2>用户列表</h2>
+    <div class="toolbar">
+        <button class="btn btn-primary" data-permission="system:user:add" onclick="openAddModal()">新增用户</button>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>用户类型</th>
+            <th>员工编号</th>
+            <th>邮箱</th>
+            <th>手机</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="userTableBody">
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination">
+    </div>
+</div>
+
+<div id="userFormModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="userFormTitle">新增用户</h3>
+            <span class="close-btn" onclick="closeUserFormModal()">&times;</span>
+        </div>
+        <form id="userForm">
+            <input type="hidden" id="userId">
+            <div class="form-group">
+                <label for="username">用户名 <span style="color: red;">*</span></label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">密码 <span style="color: red;" id="passwordRequired">*</span></label>
+                <input type="password" id="password">
+            </div>
+            <div class="form-group">
+                <label for="realName">姓名</label>
+                <input type="text" id="realName">
+            </div>
+            <div class="form-group">
+                <label for="userType">用户类型 <span style="color: red;">*</span></label>
+                <select id="userType" required onchange="handleUserTypeChange()">
+                    <option value="CUSTOMER_MANAGER">客户经理</option>
+                    <option value="CUSTOMER">客户</option>
+                </select>
+            </div>
+            <div class="form-group" id="employeeNumberGroup">
+                <label for="employeeNumber">员工编号 <span style="color: red;">*</span></label>
+                <input type="text" id="employeeNumber">
+            </div>
+            <div class="form-group" id="managerGroup" style="display: none;">
+                <label for="managerId">所属客户经理 <span style="color: red;">*</span></label>
+                <select id="managerId">
+                    <option value="">请选择客户经理</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="email">邮箱</label>
+                <input type="email" id="email">
+            </div>
+            <div class="form-group">
+                <label for="phone">手机</label>
+                <input type="text" id="phone">
+            </div>
+            <div class="form-group">
+                <label for="status">状态</label>
+                <select id="status">
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+            <button type="submit" class="save-btn">保存</button>
+        </form>
+    </div>
+</div>
+
+<div id="roleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>分配角色</h3>
+            <span class="close-btn" onclick="closeRoleModal()">&times;</span>
+        </div>
+        <div class="form-group">
+            <label>当前用户：</label>
+            <input type="text" id="currentUserName" readonly>
+        </div>
+        <div class="form-group">
+            <label>选择角色：</label>
+            <div class="checkbox-group" id="roleCheckboxGroup">
+            </div>
+        </div>
+        <button class="save-btn" onclick="saveUserRoles()">保存</button>
+    </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/user.js"></script>
+<script>
+    window.onload = function() {
+        if (!permissionHelper.hasPermission('system:user:view')) {
+            permissionHelper.showNoPermissionMessage('userTableBody', '您没有权限查看用户列表');
+            document.querySelector('.toolbar').style.display = 'none';
+            return;
+        }
+        initUserPage();
+        permissionHelper.hideNoPermissionElements();
+    };
+</script>
+</body>
+</html>

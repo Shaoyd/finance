@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.know.finance.mapper.ChatSessionMapper">
+
+    <insert id="insert" parameterType="com.know.finance.entity.ChatSession" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_session (session_id, user_id, session_name, conversation_id, create_time, update_time, deleted)
+        VALUES (#{sessionId}, #{userId}, #{sessionName}, #{conversationId}, NOW(), NOW(), 0)
+    </insert>
+
+    <select id="findBySessionIdAndUserId" resultType="com.know.finance.entity.ChatSession">
+        SELECT * FROM chat_session
+        WHERE session_id = #{sessionId} AND user_id = #{userId} AND deleted = 0
+    </select>
+
+    <select id="findByUserId" resultType="com.know.finance.entity.ChatSession">
+        SELECT * FROM chat_session
+        WHERE user_id = #{userId} AND deleted = 0
+        ORDER BY update_time DESC
+    </select>
+
+    <update id="updateSessionName">
+        UPDATE chat_session
+        SET session_name = #{sessionName}, update_time = NOW()
+        WHERE session_id = #{sessionId} AND user_id = #{userId}
+    </update>
+
+    <update id="updateConversationId">
+        UPDATE chat_session
+        SET conversation_id = #{conversationId}, update_time = NOW()
+        WHERE session_id = #{sessionId} AND user_id = #{userId}
+    </update>
+
+    <update id="deleteBySessionIdAndUserId">
+        UPDATE chat_session
+        SET deleted = 1
+        WHERE session_id = #{sessionId} AND user_id = #{userId}
+    </update>
+</mapper>

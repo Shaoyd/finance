@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.know.finance.mapper.UserMapper">
+
+    <resultMap id="userResultMap" type="com.know.finance.entity.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="realName" column="real_name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="userType" column="user_type"/>
+        <result property="employeeNumber" column="employee_number"/>
+        <result property="managerId" column="manager_id"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deleted" column="deleted"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.know.finance.entity.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (username, password, real_name, email, phone, user_type, employee_number, manager_id, status, create_time, update_time, deleted)
+        VALUES (#{username}, #{password}, #{realName}, #{email}, #{phone}, #{userType}, #{employeeNumber}, #{managerId}, #{status}, NOW(), NOW(), 0)
+    </insert>
+
+    <select id="findById" resultMap="userResultMap">
+        SELECT * FROM sys_user WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findByUsername" resultMap="userResultMap">
+        SELECT * FROM sys_user WHERE username = #{username} AND deleted = 0
+    </select>
+
+    <select id="findAll" resultMap="userResultMap">
+        SELECT * FROM sys_user WHERE deleted = 0 ORDER BY create_time DESC
+    </select>
+
+    <select id="findPage" resultMap="userResultMap">
+        SELECT * FROM sys_user WHERE deleted = 0
+        ORDER BY create_time DESC
+            LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM sys_user WHERE deleted = 0
+    </select>
+
+    <update id="update">
+        UPDATE sys_user
+        <set>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="userType != null">user_type = #{userType},</if>
+            <if test="employeeNumber != null">employee_number = #{employeeNumber},</if>
+            <if test="managerId != null">manager_id = #{managerId},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE sys_user SET deleted = 1 WHERE id = #{id}
+    </update>
+
+    <select id="findByManagerId" resultMap="userResultMap">
+        SELECT * FROM sys_user WHERE manager_id = #{managerId} AND deleted = 0 AND user_type = 'CUSTOMER'
+    </select>
+
+    <delete id="deleteUserRoles">
+        DELETE FROM sys_user_role WHERE user_id = #{userId}
+    </delete>
+
+    <insert id="assignUserRole">
+        INSERT INTO sys_user_role (user_id, role_id) VALUES (#{userId}, #{roleId})
+    </insert>
+
+    <select id="findRoleIdsByUserId" resultType="long">
+        SELECT role_id FROM sys_user_role WHERE user_id = #{userId}
+    </select>
+</mapper>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能助手</title>
+    <link rel="stylesheet" href="/css/chat.css">
+</head>
+<body>
+<div class="chat-container">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <button class="new-chat-btn" onclick="createNewSession()">
+                <span>+</span>
+                <span>新建对话</span>
+            </button>
+        </div>
+        <div class="session-list" id="sessionList">
+        </div>
+    </div>
+
+    <div class="chat-main">
+        <div class="chat-header">
+            <h2 id="chatTitle">智能助手</h2>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state">
+                <div class="empty-state-icon">💬</div>
+                <div class="empty-state-text">开始新的对话</div>
+                <div class="empty-state-subtext">输入您的问题，我将竭诚为您服务</div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                    <textarea
+                            class="message-input"
+                            id="messageInput"
+                            placeholder="输入您的问题..."
+                            rows="1"
+                            onkeypress="handleKeyPress(event)"
+                    ></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    发送
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/chat.js"></script>
+</body>
+</html>

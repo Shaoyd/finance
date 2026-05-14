@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.know.finance.mapper.ChatMessageMapper">
+
+    <insert id="insert" parameterType="com.know.finance.entity.ChatMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_message (session_id, user_id, message_type, content, dify_message_id, parent_message_id, sort_order, create_time, deleted)
+        VALUES (#{sessionId}, #{userId}, #{messageType}, #{content}, #{difyMessageId}, #{parentMessageId}, #{sortOrder}, NOW(), 0)
+    </insert>
+
+    <select id="findBySessionIdAndUserId" resultType="com.know.finance.entity.ChatMessage">
+        SELECT * FROM chat_message
+        WHERE session_id = #{sessionId} AND user_id = #{userId} AND deleted = 0
+        ORDER BY sort_order ASC
+    </select>
+
+    <select id="countBySessionIdAndUserId" resultType="int">
+        SELECT COUNT(*) FROM chat_message
+        WHERE session_id = #{sessionId} AND user_id = #{userId} AND deleted = 0
+    </select>
+
+    <update id="deleteBySessionIdAndUserId">
+        UPDATE chat_message
+        SET deleted = 1
+        WHERE session_id = #{sessionId} AND user_id = #{userId}
+    </update>
+</mapper>

@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://1.15.174.233:5432/postgres
+    username: postgres
+    password: 91s06y03D
+    driver-class-name: org.postgresql.Driver
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.know.finance.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: mySecretKeyForJWTTokenGenerationAndValidation123456789
+  expiration: 86400000
+
+dify:
+  api:
+    url: http://1.15.174.233/v1
+    key: app-iAN6pdNqHovOUS1QczyfClrI
+
+logging:
+  level:
+    com.know.finance: debug

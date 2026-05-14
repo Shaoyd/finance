@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.know.finance.mapper.RoleMapper">
+
+    <resultMap id="RoleResultMap" type="com.know.finance.entity.Role">
+        <id property="id" column="id"/>
+        <result property="roleCode" column="role_code"/>
+        <result property="roleName" column="role_name"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deleted" column="deleted"/>
+    </resultMap>
+
+    <select id="findById" resultMap="RoleResultMap">
+        SELECT * FROM sys_role WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="findByRoleCode" resultMap="RoleResultMap">
+        SELECT * FROM sys_role WHERE role_code = #{roleCode} AND deleted = 0
+    </select>
+
+    <select id="findAll" resultMap="RoleResultMap">
+        SELECT * FROM sys_role WHERE deleted = 0 ORDER BY create_time DESC
+    </select>
+
+    <select id="findPage" resultMap="RoleResultMap">
+        SELECT * FROM sys_role WHERE deleted = 0 ORDER BY create_time DESC
+            LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM sys_role WHERE deleted = 0
+    </select>
+
+    <select id="findByUserId" resultMap="RoleResultMap">
+        SELECT r.* FROM sys_role r
+                            INNER JOIN sys_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId} AND r.deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_role(role_code, role_name, description, status)
+        VALUES(#{roleCode}, #{roleName}, #{description}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE sys_role
+        SET role_name = #{roleName}, description = #{description},
+            status = #{status}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE sys_role SET deleted = 1, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+    <select id="findPermissionIdsByRoleId" resultType="java.lang.Long">
+        SELECT permission_id FROM sys_role_permission WHERE role_id = #{roleId}
+    </select>
+
+    <delete id="deleteRolePermissions">
+        DELETE FROM sys_role_permission WHERE role_id = #{roleId}
+    </delete>
+
+    <insert id="assignRolePermission">
+        INSERT INTO sys_role_permission(role_id, permission_id) VALUES(#{roleId}, #{permissionId})
+    </insert>
+
+</mapper>

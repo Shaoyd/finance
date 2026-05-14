@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>权限管理</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+<div class="card">
+    <h2>权限列表</h2>
+    <div class="toolbar">
+        <button class="btn btn-primary" onclick="openAddModal()">新增权限</button>
+        <button class="btn btn-success" onclick="refreshPermissions()">刷新权限配置</button>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>权限编码</th>
+            <th>权限名称</th>
+            <th>资源类型</th>
+            <th>资源URL</th>
+            <th>认证类型</th>
+            <th>排序</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="permissionTableBody">
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination">
+    </div>
+</div>
+
+<div id="permissionFormModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="permissionFormTitle">新增权限</h3>
+            <span class="close-btn" onclick="closePermissionFormModal()">&times;</span>
+        </div>
+        <form id="permissionForm">
+            <input type="hidden" id="permissionId">
+            <div class="form-group">
+                <label for="permissionCode">权限编码 <span style="color: red;">*</span></label>
+                <input type="text" id="permissionCode" required placeholder="例如：system:user:view">
+            </div>
+            <div class="form-group">
+                <label for="permissionName">权限名称 <span style="color: red;">*</span></label>
+                <input type="text" id="permissionName" required>
+            </div>
+            <div class="form-group">
+                <label for="resourceType">资源类型</label>
+                <select id="resourceType">
+                    <option value="menu">菜单</option>
+                    <option value="button">按钮</option>
+                    <option value="api">接口</option>
+                    <option value="page">页面</option>
+                    <option value="static">静态资源</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="resourceUrl">资源URL <span style="color: red;">*</span></label>
+                <input type="text" id="resourceUrl" required placeholder="/api/example 或 /example.html 或 /css/**">
+            </div>
+            <div class="form-group">
+                <label for="authType">认证类型 <span style="color: red;">*</span></label>
+                <select id="authType" required>
+                    <option value="PUBLIC">公开访问（无需登录）</option>
+                    <option value="AUTHENTICATED">需要登录认证</option>
+                </select>
+                <small style="color: #999; display: block; margin-top: 5px;">
+                    公开访问：任何人可访问；需要登录：必须登录后才能访问
+                </small>
+            </div>
+            <div class="form-group">
+                <label for="parentId">父级ID</label>
+                <input type="number" id="parentId" value="0">
+            </div>
+            <div class="form-group">
+                <label for="sortOrder">排序</label>
+                <input type="number" id="sortOrder" value="0">
+            </div>
+            <div class="form-group">
+                <label for="status">状态</label>
+                <select id="status">
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+            <button type="submit" class="save-btn">保存</button>
+        </form>
+    </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/permission.js"></script>
+<script>
+    window.onload = function() {
+        if (!permissionHelper.hasPermission('system:permission:view')) {
+            permissionHelper.showNoPermissionMessage('permissionTableBody', '您没有权限查看权限列表');
+            document.querySelector('.toolbar').style.display = 'none';
+            return;
+        }
+        initPermissionPage();
+        permissionHelper.hideNoPermissionElements();
+    };
+</script>
+</body>
+</html>

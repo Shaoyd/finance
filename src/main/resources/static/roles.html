@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色管理</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+<div class="card">
+    <h2>角色列表</h2>
+    <div class="toolbar">
+        <button class="btn btn-primary" data-permission="system:role:add" onclick="openAddModal()">新增角色</button>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>角色编码</th>
+            <th>角色名称</th>
+            <th>描述</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="roleTableBody">
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination">
+    </div>
+</div>
+
+<div id="roleFormModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="roleFormTitle">新增角色</h3>
+            <span class="close-btn" onclick="closeRoleFormModal()">&times;</span>
+        </div>
+        <form id="roleForm">
+            <input type="hidden" id="roleId">
+            <div class="form-group">
+                <label for="roleCode">角色编码 <span style="color: red;">*</span></label>
+                <input type="text" id="roleCode" required placeholder="例如：ROLE_ADMIN">
+            </div>
+            <div class="form-group">
+                <label for="roleName">角色名称 <span style="color: red;">*</span></label>
+                <input type="text" id="roleName" required>
+            </div>
+            <div class="form-group">
+                <label for="description">描述</label>
+                <textarea id="description" placeholder="请输入角色描述"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="status">状态</label>
+                <select id="status">
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+            <button type="submit" class="save-btn">保存</button>
+        </form>
+    </div>
+</div>
+
+<div id="permissionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>分配权限</h3>
+            <span class="close-btn" onclick="closePermissionModal()">&times;</span>
+        </div>
+        <div class="form-group">
+            <label>当前角色：</label>
+            <input type="text" id="currentRoleName" readonly>
+        </div>
+        <div class="form-group">
+            <label>选择权限：</label>
+            <div class="checkbox-group" id="permissionCheckboxGroup">
+            </div>
+        </div>
+        <button class="save-btn" onclick="saveRolePermissions()">保存</button>
+    </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/role.js"></script>
+<script>
+    window.onload = function() {
+        if (!permissionHelper.hasPermission('system:role:view')) {
+            permissionHelper.showNoPermissionMessage('roleTableBody', '您没有权限查看角色列表');
+            document.querySelector('.toolbar').style.display = 'none';
+            return;
+        }
+        initRolePage();
+        permissionHelper.hideNoPermissionElements();
+    };
+</script>
+</body>
+</html>

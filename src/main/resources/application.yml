@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 7788
 
 spring:
   datasource:
@@ -21,7 +21,7 @@ jwt:
 dify:
   api:
     url: http://1.15.174.233/v1
-    key: app-iAN6pdNqHovOUS1QczyfClrI
+    chat_message_key: app-iAN6pdNqHovOUS1QczyfClrI
 
 logging:
   level:

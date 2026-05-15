@@ -114,7 +114,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.know.finance.FinanceApplication</mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>

@@ -189,7 +189,6 @@ body {
     border-radius: 12px;
     line-height: 1.6;
     word-wrap: break-word;
-    max-width: 70%;
 }
 
 .message.user .message-content {
@@ -197,6 +196,7 @@ body {
     color: white;
     border-bottom-right-radius: 4px;
     width: 100%;
+    max-width: 100%;
 }
 
 .message.assistant .message-content {
@@ -206,6 +206,7 @@ body {
     border-bottom-left-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     width: fit-content;
+    max-width: 70%;
 }
 
 .message-time {

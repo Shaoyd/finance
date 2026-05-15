@@ -25,8 +25,8 @@ public class DifyApiClient {
     @Value("${dify.api.url:http://1.15.174.233/v1}")
     private String difyApiUrl;
 
-    @Value("${dify.api.key:}")
-    private String difyApiKey;
+    @Value("${dify.api.chat_message_key:}")
+    private String difyChatMessageApiKey;
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -41,7 +41,7 @@ public class DifyApiClient {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + difyApiKey);
+        headers.set("Authorization", "Bearer " + difyChatMessageApiKey);
 
         Map<String, Object> requestBody = buildRequestBody(query, user, conversationId, false);
 
@@ -74,7 +74,7 @@ public class DifyApiClient {
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Authorization", "Bearer " + difyApiKey);
+            connection.setRequestProperty("Authorization", "Bearer " + difyChatMessageApiKey);
             connection.setRequestProperty("Accept", "text/event-stream");
 
             Map<String, Object> requestBody = buildRequestBody(query, user, conversationId, true);

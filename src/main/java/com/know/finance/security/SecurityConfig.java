@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
 import java.util.Set;
 
@@ -34,6 +35,7 @@ public class SecurityConfig {
      *   <li>设置会话创建策略为STATELESS（无状态）</li>
      *   <li>从数据库动态加载URL访问权限规则</li>
      *   <li>添加JWT认证过滤器</li>
+     *   <li>配置未登录用户自动跳转到登录页面</li>
      * </ul>
      *
      * @param http HttpSecurity对象，用于配置HTTP安全策略
@@ -45,6 +47,9 @@ public class SecurityConfig {
 
         http.csrf().disable()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .exceptionHandling()
+                .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login.html"))
                 .and()
                 .headers().frameOptions().sameOrigin()
                 .and()

@@ -7,8 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatRequest {
-    private String sessionId;
-    private String message;
-    private Boolean deepThink;
+public class ThinkContent {
+    private String thinking;
+    private String answer;
 }

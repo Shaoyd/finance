@@ -1,6 +1,7 @@
 const token = localStorage.getItem('token');
 let currentSessionId = null;
 let isLoading = false;
+let deepThinkMode = false;
 
 if (!token) {
     window.location.href = '/login.html';
@@ -9,6 +10,20 @@ if (!token) {
 window.onload = function() {
     loadSessions();
     document.getElementById('messageInput').focus();
+
+    const deepThinkToggle = document.getElementById('deepThinkToggle');
+    if (deepThinkToggle) {
+        deepThinkToggle.addEventListener('change', function() {
+            deepThinkMode = this.checked;
+            localStorage.setItem('deepThinkMode', deepThinkMode);
+        });
+
+        const savedMode = localStorage.getItem('deepThinkMode');
+        if (savedMode === 'true') {
+            deepThinkToggle.checked = true;
+            deepThinkMode = true;
+        }
+    }
 };
 
 async function loadSessions() {
@@ -123,7 +138,8 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 sessionId: currentSessionId,
-                message: message
+                message: message,
+                deepThink: deepThinkMode
             })
         });
 
@@ -134,62 +150,101 @@ async function sendMessage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let fullContent = '';
+        let fullThinkContent = '';
+        let fullAnswerContent = '';
         let conversationId = null;
         let messageId = null;
+        let currentEventType = null;
+        let currentEventData = '';
 
         while (true) {
             const { done, value } = await reader.read();
 
-            if (done) break;
+            if (done) {
+                if (buffer.trim()) {
+                    processSSELine(buffer.trim(), (type, data) => {
+                        handleSSEEvent(type, data);
+                    });
+                }
+                break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
             for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
 
-                if (line.startsWith('event:')) {
-                } else if (line.startsWith('data:')) {
-                    const dataStr = line.substring(5).trim();
-
-                    if (dataStr && dataStr !== '[DONE]') {
-                        try {
-                            const data = JSON.parse(dataStr);
-
-                            if (data.content) {
-                                fullContent += data.content;
-                                updateAssistantMessage(assistantMessageDiv, fullContent);
-                            }
-
-                            if (data.conversationId && !conversationId) {
-                                conversationId = data.conversationId;
-                            }
-
-                            if (data.messageId) {
-                                messageId = data.messageId;
-                            }
-
-                            if (data.sessionId && !currentSessionId) {
-                                currentSessionId = data.sessionId;
-                                loadSessions();
-                            }
-
-                            if (data.done) {
-                                scrollToBottom();
-                            }
-                        } catch (e) {
-                            console.error('解析 SSE 数据失败:', e, '原始数据:', dataStr);
-                        }
+                if (trimmedLine.startsWith('event:')) {
+                    currentEventType = trimmedLine.substring(6).trim();
+                    currentEventData = '';
+                } else if (trimmedLine.startsWith('data:')) {
+                    const dataContent = trimmedLine.substring(5).trim();
+                    if (dataContent && dataContent !== '[DONE]') {
+                        handleSSEEvent(currentEventType, dataContent);
                     }
                 }
             }
         }
 
-        console.log('对话结束 - sessionId:', currentSessionId, 'conversationId:', conversationId);
+        function handleSSEEvent(eventType, dataStr) {
+            if (!dataStr) return;
+
+            try {
+                const data = JSON.parse(dataStr);
+
+                if (eventType === 'thinking') {
+                    if (data.content) {
+                        fullThinkContent += data.content;
+                        updateThinkingDisplay(assistantMessageDiv, fullThinkContent, fullAnswerContent);
+                    }
+                    if (data.conversationId && !conversationId) {
+                        conversationId = data.conversationId;
+                    }
+                } else if (eventType === 'thinking_end') {
+                    if (data.content) {
+                        fullThinkContent += data.content;
+                    }
+                    updateThinkingDisplay(assistantMessageDiv, fullThinkContent, fullAnswerContent);
+                } else if (eventType === 'message') {
+                    if (data.content) {
+                        fullAnswerContent += data.content;
+                        if (deepThinkMode) {
+                            updateAssistantMessageWithThink(assistantMessageDiv, fullThinkContent, fullAnswerContent);
+                        } else {
+                            updateAssistantMessage(assistantMessageDiv, fullAnswerContent);
+                        }
+                    }
+
+                    if (data.conversationId && !conversationId) {
+                        conversationId = data.conversationId;
+                    }
+
+                    if (data.messageId) {
+                        messageId = data.messageId;
+                    }
+
+                    if (data.sessionId && !currentSessionId) {
+                        currentSessionId = data.sessionId;
+                        loadSessions();
+                    }
+                } else if (eventType === 'done') {
+                    scrollToBottom();
+                }
+            } catch (e) {
+                console.error('解析 SSE 数据失败:', e, '原始数据:', dataStr);
+            }
+        }
+
+        console.log('对话结束 - sessionId:', currentSessionId, 'conversationId:', conversationId, 'hasThink:', fullThinkContent.length > 0);
     } catch (error) {
         console.error('发送消息失败:', error);
-        removeTypingIndicator();
+        const typingIndicator = document.getElementById('typingIndicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
         appendMessage('assistant', '抱歉，发送消息失败，请稍后重试。');
     } finally {
         isLoading = false;
@@ -207,8 +262,7 @@ function appendMessage(type, content) {
 
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
-    messageDiv.innerHTML = `
-        <div class="message-avatar">${type === 'user' ? '👤' : '🤖'}</div>
+    messageDiv.innerHTML = `        <div class="message-avatar">${type === 'user' ? '👤' : '🤖'}</div>
         <div>
             <div class="message-content">${formatMessage(content)}</div>
             <div class="message-time">${formatTime(new Date())}</div>
@@ -229,8 +283,7 @@ function showTypingIndicator() {
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message assistant';
     typingDiv.id = 'typingIndicator';
-    typingDiv.innerHTML = `
-        <div class="message-avatar">🤖</div>
+    typingDiv.innerHTML = `        <div class="message-avatar">🤖</div>
         <div>
             <div class="message-content" id="streamingContent">
                 <div class="typing-indicator">
@@ -253,6 +306,48 @@ function updateAssistantMessage(typingDiv, content) {
     const contentDiv = typingDiv.querySelector('#streamingContent');
     if (contentDiv) {
         contentDiv.innerHTML = formatMessage(content);
+        scrollToBottom();
+    }
+}
+
+function updateThinkingDisplay(typingDiv, thinkContent, answerContent) {
+    if (!typingDiv) return;
+
+    const contentDiv = typingDiv.querySelector('#streamingContent');
+    if (contentDiv) {
+        let html = '';
+        if (thinkContent) {
+            html += '<div class="thinking-section">';
+            html += '<div class="thinking-header">💭 深度思考中...</div>';
+            html += '<div class="thinking-content">' + formatMessage(thinkContent) + '</div>';
+            html += '</div>';
+        }
+        contentDiv.innerHTML = html;
+        scrollToBottom();
+    }
+}
+
+function updateAssistantMessageWithThink(typingDiv, thinkContent, answerContent) {
+    if (!typingDiv) return;
+
+    const contentDiv = typingDiv.querySelector('#streamingContent');
+    if (contentDiv) {
+        let html = '';
+
+        if (thinkContent) {
+            html += '<details class="thinking-section">';
+            html += '<summary class="thinking-header">💭 深度思考过程</summary>';
+            html += '<div class="thinking-content">' + formatMessage(thinkContent) + '</div>';
+            html += '</details>';
+        }
+
+        if (answerContent) {
+            html += '<div class="answer-section">';
+            html += formatMessage(answerContent);
+            html += '</div>';
+        }
+
+        contentDiv.innerHTML = html;
         scrollToBottom();
     }
 }
@@ -324,7 +419,46 @@ function scrollToBottom() {
 }
 
 function formatMessage(content) {
+    if (!content) return '';
+
+    const htmlTablePattern = /<!DOCTYPE\s+html[\s\S]*?<table[\s\S]*?<\/table>[\s\S]*?<\/html>/i;
+    const tableOnlyPattern = /<table[\s\S]*?<\/table>/i;
+
+    if (htmlTablePattern.test(content)) {
+        const tableMatch = content.match(/<table[\s\S]*?<\/table>/i);
+        if (tableMatch) {
+            const sanitizedTable = sanitizeHtmlTable(tableMatch[0]);
+            return `<div class="table-wrapper">${sanitizedTable}</div>`;
+        }
+    } else if (tableOnlyPattern.test(content)) {
+        const tableMatch = content.match(/<table[\s\S]*?<\/table>/i);
+        if (tableMatch) {
+            const sanitizedTable = sanitizeHtmlTable(tableMatch[0]);
+            return `<div class="table-wrapper">${sanitizedTable}</div>`;
+        }
+    }
+
     return escapeHtml(content).replace(/\n/g, '<br>');
+}
+
+function sanitizeHtmlTable(tableHtml) {
+    const allowedTags = ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption'];
+    let sanitized = tableHtml;
+
+    sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, '');
+    sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
+    sanitized = sanitized.replace(/on\w+\s*=\s*\S+/gi, '');
+
+    const styleMatch = sanitized.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    if (!styleMatch) {
+        sanitized = sanitized.replace(/<style[\s\S]*?<\/style>/gi, '');
+    }
+
+    sanitized = sanitized.replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+    sanitized = sanitized.replace(/<object[\s\S]*?<\/object>/gi, '');
+    sanitized = sanitized.replace(/<embed[\s\S]*?>/gi, '');
+
+    return sanitized;
 }
 
 function escapeHtml(text) {

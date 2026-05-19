@@ -21,7 +21,11 @@ jwt:
 dify:
   api:
     url: http://1.15.174.233/v1
-    chat_message_key: app-iAN6pdNqHovOUS1QczyfClrI
+    chat_message_key: app-hq6ZQ7BxOlwJsDwXazIgjHkk
+    deepthink_api_key: app-kIocOl9ibyCgU4nYWPdse2N7
+    connect_timeout: 30000
+    read_timeout_normal: 120000
+    read_timeout_deepthink: 300000
 
 logging:
   level:

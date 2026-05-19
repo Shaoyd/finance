@@ -64,6 +64,7 @@ public class ChatService {
                 difyResponse.getConversationId(),
                 "msg_" + (context.messageCount + 1),
                 difyResponse.getContent(),
+                null,
                 System.currentTimeMillis()
         );
     }
@@ -77,32 +78,78 @@ public class ChatService {
         CompletableFuture.runAsync(() -> {
             try {
                 String[] conversationIdWrapper = new String[1];
-                StringBuilder fullContent = new StringBuilder();
+                StringBuilder fullThinkContent = new StringBuilder();
+                StringBuilder fullAnswerContent = new StringBuilder();
+                boolean isDeepThink = request.getDeepThink() != null && request.getDeepThink();
 
                 difyApiClient.sendStreamingMessage(
                         request.getMessage(),
                         "user_" + userId,
                         context.difyConversationId,
+                        isDeepThink,
                         (chunk, convId) -> {
                             try {
-                                if (chunk != null && !chunk.isEmpty()) {
-                                    fullContent.append(chunk);
-                                }
-
                                 if (convId != null && conversationIdWrapper[0] == null) {
                                     conversationIdWrapper[0] = convId;
                                     log.debug("首次获取到 conversationId: {}", convId);
                                 }
 
-                                if (chunk != null && !chunk.isEmpty()) {
-                                    Map<String, Object> data = new HashMap<>();
-                                    data.put("content", chunk);
-                                    data.put("sessionId", context.sessionId);
-                                    data.put("conversationId", conversationIdWrapper[0]);
-                                    data.put("messageId", "msg_" + (context.messageCount + fullContent.length()));
-                                    emitter.send(SseEmitter.event()
-                                            .name("message")
-                                            .data(data));
+                                if (isDeepThink) {
+                                    try {
+                                        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                                        com.fasterxml.jackson.databind.JsonNode jsonNode = mapper.readTree(chunk);
+
+                                        String type = jsonNode.has("type") ? jsonNode.get("type").asText() : "";
+                                        String content = jsonNode.has("content") ? jsonNode.get("content").asText() : "";
+
+                                        if ("thinking".equals(type)) {
+                                            fullThinkContent.append(content);
+                                            Map<String, Object> data = new HashMap<>();
+                                            data.put("type", "thinking");
+                                            data.put("content", content);
+                                            data.put("sessionId", context.sessionId);
+                                            data.put("conversationId", conversationIdWrapper[0]);
+                                            data.put("messageId", "msg_" + (context.messageCount + 1));
+                                            emitter.send(SseEmitter.event()
+                                                    .name("thinking")
+                                                    .data(data));
+                                        } else if ("thinking_end".equals(type)) {
+                                            fullThinkContent.append(content);
+                                            Map<String, Object> data = new HashMap<>();
+                                            data.put("type", "thinking_end");
+                                            data.put("content", content);
+                                            data.put("sessionId", context.sessionId);
+                                            data.put("conversationId", conversationIdWrapper[0]);
+                                            emitter.send(SseEmitter.event()
+                                                    .name("thinking_end")
+                                                    .data(data));
+                                        } else if ("answer".equals(type)) {
+                                            fullAnswerContent.append(content);
+                                            Map<String, Object> data = new HashMap<>();
+                                            data.put("type", "answer");
+                                            data.put("content", content);
+                                            data.put("sessionId", context.sessionId);
+                                            data.put("conversationId", conversationIdWrapper[0]);
+                                            data.put("messageId", "msg_" + (context.messageCount + 1));
+                                            emitter.send(SseEmitter.event()
+                                                    .name("message")
+                                                    .data(data));
+                                        }
+                                    } catch (Exception e) {
+                                        log.error("解析深度思考数据失败", e);
+                                    }
+                                } else {
+                                    if (chunk != null && !chunk.isEmpty()) {
+                                        fullAnswerContent.append(chunk);
+                                        Map<String, Object> data = new HashMap<>();
+                                        data.put("content", chunk);
+                                        data.put("sessionId", context.sessionId);
+                                        data.put("conversationId", conversationIdWrapper[0]);
+                                        data.put("messageId", "msg_" + (context.messageCount + fullAnswerContent.length()));
+                                        emitter.send(SseEmitter.event()
+                                                .name("message")
+                                                .data(data));
+                                    }
                                 }
                             } catch (Exception e) {
                                 log.error("发送 SSE 事件失败", e);
@@ -111,20 +158,26 @@ public class ChatService {
                 );
 
                 saveConversationIdIfNeeded(context, conversationIdWrapper[0], userId);
-                saveAssistantMessage(context, fullContent.toString(), userId);
+
+                String finalContent = fullAnswerContent.toString();
+                if (finalContent.isEmpty()) {
+                    finalContent = fullThinkContent.toString();
+                }
+                saveAssistantMessage(context, finalContent, userId);
 
                 Map<String, Object> doneData = new HashMap<>();
                 doneData.put("done", true);
                 doneData.put("sessionId", context.sessionId);
                 doneData.put("conversationId", conversationIdWrapper[0]);
                 doneData.put("messageCount", context.messageCount + 1);
+                doneData.put("hasThink", fullThinkContent.length() > 0);
                 emitter.send(SseEmitter.event()
                         .name("done")
                         .data(doneData));
 
                 emitter.complete();
-                log.info("流式消息处理完成: sessionId={}, conversationId={}",
-                        context.sessionId, conversationIdWrapper[0]);
+                log.info("流式消息处理完成: sessionId={}, conversationId={}, hasThink={}",
+                        context.sessionId, conversationIdWrapper[0], fullThinkContent.length() > 0);
 
             } catch (Exception e) {
                 log.error("流式消息处理失败: sessionId={}", context.sessionId, e);

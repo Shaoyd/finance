@@ -12,5 +12,6 @@ public class ChatResponse {
     private String conversationId;
     private String messageId;
     private String content;
+    private String thinkContent;
     private Long timestamp;
 }

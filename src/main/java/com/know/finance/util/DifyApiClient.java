@@ -12,7 +12,6 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -27,6 +26,18 @@ public class DifyApiClient {
 
     @Value("${dify.api.chat_message_key:}")
     private String difyChatMessageApiKey;
+
+    @Value("${dify.api.deepthink_api_key:}")
+    private String difyDeepthinkApiKey;
+
+    @Value("${dify.api.connect_timeout:30000}")
+    private int connectTimeout;
+
+    @Value("${dify.api.read_timeout_normal:120000}")
+    private int readTimeoutNormal;
+
+    @Value("${dify.api.read_timeout_deepthink:300000}")
+    private int readTimeoutDeepthink;
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -64,20 +75,32 @@ public class DifyApiClient {
     }
 
     public void sendStreamingMessage(String query, String user, String conversationId, StreamCallback callback) {
+        sendStreamingMessage(query, user, conversationId, false, callback);
+    }
+
+    public void sendStreamingMessage(String query, String user, String conversationId, boolean deepThink, StreamCallback callback) {
         String url = difyApiUrl + "/chat-messages";
 
         try {
-            log.debug("调用 Dify API (流式模式): url={}, conversationId={}", url, conversationId);
+            log.debug("调用 Dify API (流式模式): url={}, conversationId={}, deepThink={}", url, conversationId, deepThink);
 
             URL apiUrl = new URL(url);
             HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
+            connection.setConnectTimeout(connectTimeout);
+            connection.setReadTimeout(deepThink ? readTimeoutDeepthink : readTimeoutNormal);
             connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Authorization", "Bearer " + difyChatMessageApiKey);
             connection.setRequestProperty("Accept", "text/event-stream");
 
+
             Map<String, Object> requestBody = buildRequestBody(query, user, conversationId, true);
+            if (deepThink) {
+                requestBody.put("enable_thinking", true);
+                connection.setRequestProperty("Authorization", "Bearer " + difyDeepthinkApiKey);
+            } else {
+                connection.setRequestProperty("Authorization", "Bearer " + difyChatMessageApiKey);
+            }
             String jsonInputString = objectMapper.writeValueAsString(requestBody);
 
             try (java.io.OutputStream os = connection.getOutputStream()) {
@@ -94,6 +117,9 @@ public class DifyApiClient {
 
                     String line;
                     String conversationIdFromStream = null;
+                    StringBuilder thinkBuffer = null;
+                    StringBuilder answerBuffer = new StringBuilder();
+                    boolean inThinkingMode = false;
 
                     while ((line = reader.readLine()) != null) {
                         if (line.startsWith("data: ")) {
@@ -114,7 +140,75 @@ public class DifyApiClient {
                                     String chunk = jsonNode.path("answer").asText();
                                     if (!chunk.isEmpty()) {
                                         log.debug("收到文本块: {}", chunk);
-                                        callback.onChunk(chunk, conversationIdFromStream);
+
+                                        if (deepThink) {
+                                            answerBuffer.append(chunk);
+
+                                            if (thinkBuffer == null) {
+                                                thinkBuffer = new StringBuilder();
+                                            }
+
+                                            String combinedContent = thinkBuffer.toString() + chunk;
+
+                                            int thinkStartIndex = combinedContent.indexOf("<think>");
+                                            int thinkEndIndex = combinedContent.indexOf("</think>");
+
+                                            if (thinkStartIndex != -1 && thinkEndIndex == -1) {
+                                                inThinkingMode = true;
+                                                String thinkPart = combinedContent.substring(thinkStartIndex + 7);
+                                                thinkBuffer.setLength(0);
+                                                thinkBuffer.append(thinkPart);
+
+                                                Map<String, Object> thinkData = new HashMap<>();
+                                                thinkData.put("type", "thinking");
+                                                thinkData.put("content", thinkPart);
+                                                thinkData.put("conversationId", conversationIdFromStream);
+                                                callback.onChunk(objectMapper.writeValueAsString(thinkData), conversationIdFromStream);
+                                            } else if (inThinkingMode && thinkEndIndex != -1) {
+                                                inThinkingMode = false;
+                                                String beforeThink = combinedContent.substring(0, thinkStartIndex != -1 ? thinkStartIndex : 0);
+                                                String thinkPart = combinedContent.substring(thinkStartIndex + 7, thinkEndIndex);
+                                                String afterThink = combinedContent.substring(thinkEndIndex + 8);
+
+                                                thinkBuffer.setLength(0);
+                                                thinkBuffer.append(thinkPart);
+
+                                                Map<String, Object> thinkEndData = new HashMap<>();
+                                                thinkEndData.put("type", "thinking_end");
+                                                thinkEndData.put("content", thinkPart);
+                                                thinkEndData.put("conversationId", conversationIdFromStream);
+                                                callback.onChunk(objectMapper.writeValueAsString(thinkEndData), conversationIdFromStream);
+
+                                                if (!afterThink.isEmpty()) {
+                                                    Map<String, Object> answerData = new HashMap<>();
+                                                    answerData.put("type", "answer");
+                                                    answerData.put("content", afterThink);
+                                                    answerData.put("conversationId", conversationIdFromStream);
+                                                    callback.onChunk(objectMapper.writeValueAsString(answerData), conversationIdFromStream);
+                                                }
+                                            } else if (!inThinkingMode && thinkStartIndex == -1) {
+                                                Map<String, Object> answerData = new HashMap<>();
+                                                answerData.put("type", "answer");
+                                                answerData.put("content", chunk);
+                                                answerData.put("conversationId", conversationIdFromStream);
+                                                callback.onChunk(objectMapper.writeValueAsString(answerData), conversationIdFromStream);
+                                            } else if (inThinkingMode) {
+                                                thinkBuffer.append(chunk);
+                                                Map<String, Object> thinkData = new HashMap<>();
+                                                thinkData.put("type", "thinking");
+                                                thinkData.put("content", chunk);
+                                                thinkData.put("conversationId", conversationIdFromStream);
+                                                callback.onChunk(objectMapper.writeValueAsString(thinkData), conversationIdFromStream);
+                                            } else {
+                                                Map<String, Object> answerData = new HashMap<>();
+                                                answerData.put("type", "answer");
+                                                answerData.put("content", chunk);
+                                                answerData.put("conversationId", conversationIdFromStream);
+                                                callback.onChunk(objectMapper.writeValueAsString(answerData), conversationIdFromStream);
+                                            }
+                                        } else {
+                                            callback.onChunk(chunk, conversationIdFromStream);
+                                        }
                                     }
                                 }
                             } catch (Exception e) {
